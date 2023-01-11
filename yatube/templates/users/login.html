@@ -9,6 +9,7 @@
           Войти на сайт
         </div>
         <div class="card-body">
+          {% load user_filters %}
           {% if form.errors %}
               {% for field in form %}
                 {% for error in field.errors %}            
@@ -23,14 +24,14 @@
                 </div>
               {% endfor %}
           {% endif %}
-
+ 
           <form method="post"
             {% if action_url %}
               action="{% url action_url %}"
             {% endif %}
           >
           {% csrf_token %}
-
+ 
           {% for field in form %}
             <div class="form-group row my-3"
               {% if field.field.required %} 
@@ -59,6 +60,7 @@
             <button type="submit" class="btn btn-primary">
               Войти
             </button>
+            <a href="" class="btn btn-link">
               Забыли пароль?
             </a>
           </div>

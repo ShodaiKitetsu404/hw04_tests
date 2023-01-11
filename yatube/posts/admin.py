@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Post, Group
+
+from .models import Group, Post
 
 
 class PostAdmin(admin.ModelAdmin):
@@ -8,7 +9,7 @@ class PostAdmin(admin.ModelAdmin):
         'text',
         'pub_date',
         'author',
-        'group'
+        'group',
     )
     list_editable = ('group',)
     search_fields = ('text',)

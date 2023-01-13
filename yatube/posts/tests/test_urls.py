@@ -90,7 +90,7 @@ class PostsUrlsTests(TestCase):
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
             self.assertTemplateUsed(response, template)
-   
+
     def test_create_post_url_exists_for_authorized_user(self):
         """Проверка создания поста доступного
         для зарегистрированного пользователя."""
@@ -98,13 +98,13 @@ class PostsUrlsTests(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_edit_post_url_exists_for_author(self):
-        """Проверка того, что для автора поста существует 
+        """Проверка того, что для автора поста существует
         страница редактирования."""
         url = self.posts_post_edit
         if self.authorized_client == self.post.author:
             response = self.authorized_client.get(url)
             self.assertEqual(response.status_code, HTTPStatus.OK)
-    
+
     def test_edit_post_url_not_available_for_non_author(self):
         """Проверка редактирования поста только для автора."""
         if self.authorized_client_two != self.post.author:

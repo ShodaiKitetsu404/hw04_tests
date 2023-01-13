@@ -1,98 +1,113 @@
-from django.core.cache import cache
+from http import HTTPStatus
+
+from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from posts.models import Group, Post, User
+from posts.models import Group, Post
 
-from ..constants import (INDEX_TEMPLATE, GROUP_LIST_TEMPLATE,
-                         PROFILE_TEMPLATE, CREATE_POST_TEMPLATE,
-                         POST_DETAIL_TEMPLATE, POST_EDIT_TEMPLATE)
-
-SLUG = 'slug'
-USERNAME = 'author'
-LOGIN_URL = reverse('users:login')
-INDEX_URL = reverse('posts:index')
-GROUP_LIST_URL = reverse('posts:group_list', kwargs={'slug': SLUG})
-PROFILE_URL = reverse('posts:profile', kwargs={'username': USERNAME})
-CREATE_POST_URL = reverse('posts:post_create')
-CREATE_REDIR_URL = f'{LOGIN_URL}?next={CREATE_POST_URL}'
+User = get_user_model()
 
 
 class PostsUrlsTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.guest_client = Client()
+        cls.user = User.objects.create_user(username='testuser')
+        cls.user_two = User.objects.create_user(username='second_user')
+        cls.authorized_client = Client()
+        cls.authorized_client.force_login(cls.user)
+        cls.authorized_client_two = Client()
+        cls.authorized_client_two.force_login(cls.user_two)
         cls.group = Group.objects.create(
-            title='Название для теста',
-            slug=SLUG,
-            description='Описание для теста',
+            title='Тестовая группа',
+            slug='test-slug',
+            description='Тестовое описание'
         )
-        cls.user1 = User.objects.create_user(username=USERNAME)
-        cls.user2 = User.objects.create_user(username=USERNAME + '1')
         cls.post = Post.objects.create(
-            author=cls.user1,
-            text='Пост для теста',
-            group=cls.group,
+            author=cls.user,
+            text='Тестовый текст',
+            group=cls.group
         )
-        cls.POST_DETAIL_URL = reverse(
-            'posts:post_detail',
-            kwargs={'post_id': cls.post.pk})
-        cls.POST_EDIT_URL = reverse(
-            'posts:post_edit',
-            kwargs={'post_id': cls.post.id},
-        )
-        cls.EDIT_REDIR_URL = f'{LOGIN_URL}?next={cls.POST_EDIT_URL}'
+        cls.posts_index = reverse('posts:index')
+        cls.posts_group_list = reverse('posts:group_list',
+                                       args=(cls.group.slug,))
+        cls.posts_profile = reverse('posts:profile',
+                                    args=(cls.user.username,))
+        cls.posts_post_detail = reverse('posts:post_detail',
+                                        args=(cls.post.id,))
+        cls.posts_post_create = reverse('posts:post_create')
+        cls.posts_post_edit = reverse('posts:post_edit',
+                                      args=(cls.post.id,))
 
-    def setUp(self):
-        self.guest = Client()
-
-        self.author = Client()
-        self.author.force_login(self.user1)
-
-        self.another = Client()
-        self.another.force_login(self.user2)
-
-        cache.clear()
 
     def test_all_cases(self):
-        """Проверка доступа страниц приложения post для разных юзеров."""
-        cases = [
-            (INDEX_URL, self.guest, 200),
-            (GROUP_LIST_URL, self.guest, 200),
-            (PROFILE_URL, self.guest, 200),
-            (self.POST_DETAIL_URL, self.guest, 200),
-            (CREATE_POST_URL, self.author, 200),
-            (self.POST_EDIT_URL, self.author, 200),
-            (CREATE_POST_URL, self.guest, 302),
-            (self.POST_EDIT_URL, self.guest, 302),
-            (self.POST_EDIT_URL, self.another, 302)]
-        for url, client, status in cases:
-            with self.subTest(url=url, client=client):
-                self.assertEqual(client.get(url).status_code, status)
+        """Проверка доступа для всех пользователей.
+        Проверка несуществующей страницы 404."""
+        pages_for_all_users = {
+            self.posts_index: HTTPStatus.OK,
+            self.posts_group_list:
+            HTTPStatus.OK,
+            self.posts_profile:
+            HTTPStatus.OK,
+            self.posts_post_detail:
+            HTTPStatus.OK,
+            reverse('posts:post_detail', args=('0000',)):
+            HTTPStatus.NOT_FOUND
+        }
+        for address, status in pages_for_all_users.items():
+            with self.subTest(address=address):
+                response = self.guest_client.get(address)
+                self.assertEqual(
+                    response.status_code,
+                    status,
+                    f'Что-то не так с адресом {address}'
+                )
 
     def test_redirect_cases(self):
         """Проверка редиректа для неавториз и невавтора."""
-        cases = [
-            (CREATE_POST_URL, self.guest, CREATE_REDIR_URL),
-            (self.POST_EDIT_URL, self.guest, self.EDIT_REDIR_URL),
-            (self.POST_EDIT_URL, self.another, self.POST_DETAIL_URL)]
-        for url, client, redirect in cases:
-            with self.subTest(url=url, client=client, redirect=redirect):
-                self.assertRedirects(client.get(url), redirect)
+        urls_for_athorized_users = {
+            self.posts_post_create: '/auth/login/?next=/create/',
+            self.posts_post_edit:
+            f'/auth/login/?next=/posts/{self.post.id}/edit/'
+        }
+        for url, redirect_url in urls_for_athorized_users.items():
+            response = self.guest_client.get(url, follow=True)
+            self.assertRedirects(
+                response, redirect_url)
 
-    def test_urls_use_correct_template(self):
-        """Проверка на то что URL-адрес использует подходящий шаблон."""
-        cases = [
-            (INDEX_TEMPLATE, INDEX_URL),
-            (GROUP_LIST_TEMPLATE, GROUP_LIST_URL),
-            (PROFILE_TEMPLATE, PROFILE_URL),
-            (CREATE_POST_TEMPLATE, CREATE_POST_URL),
-            (POST_EDIT_TEMPLATE, self.POST_EDIT_URL),
-            (POST_DETAIL_TEMPLATE, self.POST_DETAIL_URL)]
-
-        for template, url in cases:
+    def test_urls_use_correct_templates(self):
+        """Проверка на то что URL-адрес использует верный шаблон."""
+        urls_templates_set = {
+            self.posts_index: 'posts/index.html',
+            self.posts_group_list: 'posts/group_list.html',
+            self.posts_profile: 'posts/profile.html',
+            self.posts_post_detail: 'posts/post_detail.html',
+            self.posts_post_edit: 'posts/create_post.html',
+            self.posts_post_create: 'posts/create_post.html'
+        }
+        for url, template in urls_templates_set.items():
             with self.subTest(url=url):
-                self.assertTemplateUsed(
-                    self.author.get(url),
-                    template
-                )
+                response = self.authorized_client.get(url)
+                self.assertTemplateUsed(response, template)
+   
+    def test_create_post_url_exists_for_authorized_user(self):
+        """Проверка создания поста доступного
+        для зарегистрированного пользователя."""
+        response = self.authorized_client.get(self.posts_post_create)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_edit_post_url_exists_for_author(self):
+        """Проверка того, что для автора поста существует 
+        страница редактирования."""
+        url = self.posts_post_edit
+        if self.authorized_client == self.post.author:
+            response = self.authorized_client.get(url)
+            self.assertEqual(response.status_code, HTTPStatus.OK)
+    
+    def test_edit_post_url_not_available_for_non_author(self):
+        """Проверка редактирования поста только для автора."""
+        if self.authorized_client_two != self.post.author:
+            response = self.authorized_client_two.get(self.posts_post_edit)
+            self.assertRedirects(response, self.posts_post_detail)

@@ -1,7 +1,6 @@
 from django.test import Client, TestCase
 from django.urls import reverse
 from http import HTTPStatus
-
 from posts.models import Group, Post, User
 
 POST_CREATE_URL = reverse('posts:post_create')
@@ -47,13 +46,14 @@ class PostsFormsTest(TestCase):
     def test_posts_forms_create_post(self):
         """Проверка, создает ли форма пост в базе."""
         posts = set(Post.objects.all())
+        posts_count = Post.objects.count()
         FORM_DATA = {
             'text': 'Тестовый пост формы',
             'group': self.group.id}
-        posts = set(Post.objects.all())
         response = self.authorized_client.post(
             POST_CREATE_URL,
             data=FORM_DATA)
+        self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertRedirects(response, PROFILE_URL)
         posts = set(Post.objects.all()) - posts
         self.assertEqual(len(posts), 1)
@@ -76,11 +76,15 @@ class PostsFormsTest(TestCase):
             response,
             self.POST_DETAIL_URL
         )
+        old_group_response = self.authorized_client.get(
+            reverse('group_list', args=(self.group.slug,))
+        )
         post = Post.objects.get(pk=self.post.pk)
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.author, self.post.author)
         self.assertEqual(post.group_id, form_data['group'])
+        self.assertEqual(old_group_response.context['page_obj'].paginator.count())
 
     def test_nonauthorized_user_create_post(self):
         """Проверка создания записи не авторизированным пользователем."""

@@ -84,7 +84,9 @@ class PostsFormsTest(TestCase):
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.author, self.post.author)
         self.assertEqual(post.group_id, form_data['group'])
-        self.assertEqual(old_group_response.context['page_obj'].paginator.count())
+        self.assertEqual(
+            old_group_response.context['page_obj'].paginator.count()
+            )
 
     def test_nonauthorized_user_create_post(self):
         """Проверка создания записи не авторизированным пользователем."""

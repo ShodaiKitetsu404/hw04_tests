@@ -41,7 +41,6 @@ class PostsUrlsTests(TestCase):
         cls.posts_post_edit = reverse('posts:post_edit',
                                       args=(cls.post.id,))
 
-
     def test_all_cases(self):
         """Проверка доступа для всех пользователей.
         Проверка несуществующей страницы 404."""
@@ -90,7 +89,7 @@ class PostsUrlsTests(TestCase):
         for url, template in urls_templates_set.items():
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
-                self.assertTemplateUsed(response, template)
+            self.assertTemplateUsed(response, template)
    
     def test_create_post_url_exists_for_authorized_user(self):
         """Проверка создания поста доступного

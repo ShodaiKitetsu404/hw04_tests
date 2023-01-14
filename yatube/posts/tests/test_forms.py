@@ -77,7 +77,7 @@ class PostsFormsTest(TestCase):
             self.POST_DETAIL_URL
         )
         old_group_response = self.authorized_client.get(
-            reverse('posts:group_list',args=(self.group.slug,))
+            reverse('posts:group_list', args=(self.group.slug,))
         )
         post = Post.objects.get(pk=self.post.pk)
         self.assertEqual(response.status_code, HTTPStatus.FOUND)

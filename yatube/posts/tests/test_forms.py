@@ -45,7 +45,6 @@ class PostsFormsTest(TestCase):
 
     def test_posts_forms_create_post(self):
         """Проверка, создает ли форма пост в базе."""
-        posts = set(Post.objects.all())
         posts_count = Post.objects.count()
         FORM_DATA = {
             'text': 'Тестовый пост формы',
@@ -55,9 +54,7 @@ class PostsFormsTest(TestCase):
             data=FORM_DATA)
         self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertRedirects(response, PROFILE_URL)
-        posts = set(Post.objects.all()) - posts
-        self.assertEqual(len(posts), 1)
-        post = posts.pop()
+        post = Post.objects.last()
         self.assertEqual(post.text, FORM_DATA['text'])
         self.assertEqual(post.author, self.author)
         self.assertEqual(post.group_id, FORM_DATA['group'])

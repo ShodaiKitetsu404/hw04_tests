@@ -47,7 +47,7 @@ class PostsFormsTest(TestCase):
         """Проверка, создает ли форма пост в базе."""
         posts_count = Post.objects.count()
         FORM_DATA = {
-            'text': 'Тестовый пост формы',
+            'text': 'Тестовый пост',
             'group': self.group.id}
         response = self.authorized_client.post(
             POST_CREATE_URL,
@@ -88,7 +88,7 @@ class PostsFormsTest(TestCase):
     def test_nonauthorized_user_create_post(self):
         """Проверка создания записи не авторизированным пользователем."""
         FORM_DATA = {
-            'text': 'Тестовый пост формы',
+            'text': 'Тестовый пост',
             'group': self.group.id}
         posts_before = set(Post.objects.all())
         response = self.guest_client.post(
